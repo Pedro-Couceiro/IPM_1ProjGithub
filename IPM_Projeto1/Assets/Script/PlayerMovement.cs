@@ -6,20 +6,31 @@ public class PlayerMovement : MonoBehaviour
 {
     private Rigidbody2D _rigidB;
 
+    [Header("Bools")]
     private bool _jumpCommand;
     private bool _leftCommand;
     private bool _rightCommand;
     [SerializeField] private bool _isGrounded;
-    private bool _endJump;
-    private bool _canAirJump;
-    [SerializeField] private bool _doubleJumpenabled;
+    private bool _jumpEnded;
+    private bool _canDoubleJump;
+    [SerializeField] private bool _doubleJumpEnabled;
+    private bool _canJump;
+    private bool _bombDeploy;
 
     [Header("Valores")]
-    [SerializeField] private float _speed;
-    [SerializeField] private float _jumpForce;
+    [SerializeField] float _jumpPower;
+    [SerializeField] float _runSpeed;
+    [SerializeField] private float _jumpBufferTime;
+    [SerializeField] private float _coyoteTime;
+    private float _jumpCommandTime;
+    private float _groundTime;
 
-    [SerializeField] private GameObject _groundTestlineStart;
-    [SerializeField] private GameObject _groundTestlineEnd;
+    [Header("GameObjects")]
+    [SerializeField] private GameObject _groundTestLineStart;
+    [SerializeField] private GameObject _groundTestLineEnd;
+    [SerializeField] private GameObject _firePoint;
+    [SerializeField] private GameObject _bulletPrefab;
+    [SerializeField] private GameObject _bombPrefab;
 
     private Animator _animator;
 
@@ -30,74 +41,101 @@ public class PlayerMovement : MonoBehaviour
 
     private void Update()
     {
-        if(Input.GetKey(KeyCode.A))
+        if (Input.GetKey(KeyCode.A))
         {
             _leftCommand = true;
         }
 
-        if(Input.GetKey(KeyCode.D))
+        if (Input.GetKey(KeyCode.D))
         {
             _rightCommand = true;
         }
 
-        if(Input.GetKey(KeyCode.W))
+        if (Input.GetKeyDown(KeyCode.Space))
         {
             _jumpCommand = true;
         }
 
-        if(Input.GetKeyUp(KeyCode.W))
+        if (Input.GetKeyUp(KeyCode.Space))
         {
-            _canAirJump = true;
-
-            _doubleJumpenabled = true;
+            _jumpEnded = true;
+            _jumpCommandTime = Time.unscaledTime;
+            _canDoubleJump = true;
         }
+
+        if (Input.GetKeyDown(KeyCode.J))
+        {
+            GameObject bullet = Instantiate(_bulletPrefab, _firePoint.transform.position, Quaternion.identity);
+
+            if (transform.localScale.x < 0)
+            {
+                bullet.GetComponent<PlayerProjectile>().Reverse();
+            }
+        }
+
     }
 
     private void FixedUpdate()
     {
-        _isGrounded = Physics2D.Linecast(_groundTestlineStart.transform.position, _groundTestlineEnd.transform.position);
+        _isGrounded = Physics2D.Linecast(_groundTestLineEnd.transform.position, _groundTestLineStart.transform.position);
 
-        if(_leftCommand)
+        if (_isGrounded)
         {
-            _rigidB.velocity = new Vector2(-_speed, _rigidB.velocity.y);
+            _groundTime = Time.unscaledTime;
+            _canJump = true;
+
+        }
+        else
+        {
+            if (Time.unscaledTime - _groundTime > _coyoteTime)
+            {
+                _canJump = false;
+            }
+        }
+
+        if (_leftCommand)
+        {
+            _rigidB.velocity = new Vector2(-_runSpeed, _rigidB.velocity.y);
             _leftCommand = false;
             Vector3 scale = transform.localScale;
             scale.x = -1;
             transform.localScale = scale;
         }
 
-        if(_rightCommand)
+        else if (_rightCommand)
         {
-            _rigidB.velocity = new Vector2(_speed, _rigidB.velocity.y);
+            _rigidB.velocity = new Vector2(_runSpeed, _rigidB.velocity.y);
             _rightCommand = false;
             Vector3 scale = transform.localScale;
             scale.x = 1;
             transform.localScale = scale;
         }
 
-        if(_endJump)
+
+        if (_jumpEnded)
         {
             Vector2 v = new Vector2(_rigidB.velocity.x, _rigidB.velocity.y / 2.0f);
             _rigidB.velocity = v;
-            _endJump = false;
+            _jumpEnded = false;
         }
 
-        if(_jumpCommand && _isGrounded)
+        if (_jumpCommand && _canJump && Time.unscaledTime - _jumpCommandTime < _jumpBufferTime)
         {
-            _rigidB.velocity = new Vector2(_rigidB.velocity.x, _jumpForce);
+            _rigidB.velocity = new Vector2(_rigidB.velocity.x, _jumpPower);
             _jumpCommand = false;
 
-            _canAirJump = true;
-            _doubleJumpenabled = true;
+            _canDoubleJump = true;
+            _doubleJumpEnabled = true;
         }
 
-        if(_doubleJumpenabled && _jumpCommand && !_isGrounded && _canAirJump && _rigidB.velocity.y < 0)
+        if (_doubleJumpEnabled && _jumpCommand && !_isGrounded && _canDoubleJump && _rigidB.velocity.y < 0)
         {
-            _rigidB.velocity = new Vector2(_rigidB.velocity.x, _jumpForce);
+            _rigidB.velocity = new Vector2(_rigidB.velocity.x, _jumpPower);
             _jumpCommand = false;
-            _canAirJump = false;
-            _doubleJumpenabled = false;
+            _canDoubleJump = false;
+            _doubleJumpEnabled = false;
         }
+
     }
 
 }
